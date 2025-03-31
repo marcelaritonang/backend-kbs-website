@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-// Konfigurasi transporter
+// Konfigurasi email transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -9,19 +9,27 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Endpoint handler
 module.exports = async (req, res) => {
   // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Tambahkan GET handler untuk testing
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      message: 'Contact API endpoint is working!',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
   // Handle preflight request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Hanya terima metode POST
+  // Validasi metode POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -52,7 +60,7 @@ module.exports = async (req, res) => {
     // Kirim email
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: 'karyabangunsemestas@gmail.com', // Ganti dengan email penerima
+      to: 'karyabangunsemestas@gmail.com',
       subject: `[Pesan Website] ${subject}`,
       html: emailContent
     });
@@ -67,7 +75,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Gagal mengirim pesan, silakan coba lagi nanti.',
-      error: error.message // Akan membantu debug
+      error: error.message
     });
   }
 };
