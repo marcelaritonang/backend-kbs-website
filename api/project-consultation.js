@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 module.exports = async (req, res) => {
-  // Set CORS headers dengan lebih lengkap
+  // Set CORS headers yang lebih lengkap
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
@@ -44,10 +44,10 @@ module.exports = async (req, res) => {
     // Validasi input
     const { name, email, phone, company, projectType, projectDetails, subject } = req.body || {};
     
-    if (!name || !email || !phone || !projectDetails) {
+    if (!name || !email || !projectDetails) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Data nama, email, telepon, dan detail proyek harus diisi' 
+        message: 'Data nama, email, dan detail proyek harus diisi' 
       });
     }
 
@@ -67,12 +67,12 @@ module.exports = async (req, res) => {
       <h2>Permintaan Konsultasi Proyek Baru</h2>
       <p><strong>Nama:</strong> ${name}</p>
       <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Telepon:</strong> ${phone}</p>
+      <p><strong>Telepon:</strong> ${phone || 'Tidak disertakan'}</p>
       ${company ? `<p><strong>Perusahaan:</strong> ${company}</p>` : ''}
       ${projectType ? `<p><strong>Jenis Proyek:</strong> ${projectType}</p>` : ''}
       <hr />
       <h3>Detail Proyek:</h3>
-      <pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${projectDetails}</pre>
+      <p>${projectDetails.replace(/\n/g, '<br>')}</p>
     `;
     
     // Kirim email
