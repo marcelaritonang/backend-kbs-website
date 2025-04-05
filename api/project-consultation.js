@@ -1,8 +1,7 @@
-// api/project-consultation.js
 const nodemailer = require('nodemailer');
 
 module.exports = async (req, res) => {
-  // Set CORS headers
+  // Set CORS headers dengan lebih lengkap
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
@@ -14,43 +13,53 @@ module.exports = async (req, res) => {
   }
   
   // Cek method
-  if (req.method !== 'POST') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ 
       success: false, 
       message: 'Method Not Allowed' 
     });
   }
+  
+  // Endpoint test untuk GET request
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      message: 'Project Consultation API endpoint is working!',
+      timestamp: new Date().toISOString(),
+      env_check: {
+        email_user_exists: !!process.env.EMAIL_USER,
+        email_password_exists: !!process.env.EMAIL_APP_PASSWORD
+      }
+    });
+  }
 
   try {
     console.log('Received project consultation request:', req.body);
+    console.log('Environment variables check:', {
+      EMAIL_USER_SET: !!process.env.EMAIL_USER,
+      EMAIL_APP_PASSWORD_SET: !!process.env.EMAIL_APP_PASSWORD,
+      EMAIL_USER_LENGTH: process.env.EMAIL_USER ? process.env.EMAIL_USER.length : 0,
+      EMAIL_APP_PASSWORD_LENGTH: process.env.EMAIL_APP_PASSWORD ? process.env.EMAIL_APP_PASSWORD.length : 0
+    });
     
     // Validasi input
-    const { 
-      name, 
-      email, 
-      phone, 
-      company, 
-      projectType, 
-      projectDetails,
-      subject 
-    } = req.body || {};
+    const { name, email, phone, company, projectType, projectDetails, subject } = req.body || {};
     
     if (!name || !email || !phone || !projectDetails) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Mohon lengkapi data yang diperlukan (nama, email, telepon, dan detail proyek)' 
+        message: 'Data nama, email, telepon, dan detail proyek harus diisi' 
       });
     }
 
-    // Konfigurasi email transporter
+    // Konfigurasi email transporter dengan service bukan host/port
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: 'gmail',  // Menggunakan service alih-alih host/port
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD
+        pass: process.env.EMAIL_APP_PASSWORD // Pastikan ini adalah App Password dari Google
       },
-      debug: true,
-      logger: true
+      debug: true,  // Aktifkan debug mode
+      logger: true  // Aktifkan logging
     });
 
     // Format email message
@@ -61,26 +70,28 @@ module.exports = async (req, res) => {
       <p><strong>Telepon:</strong> ${phone}</p>
       ${company ? `<p><strong>Perusahaan:</strong> ${company}</p>` : ''}
       ${projectType ? `<p><strong>Jenis Proyek:</strong> ${projectType}</p>` : ''}
-      <p><strong>Detail Proyek:</strong></p>
-      <p style="white-space: pre-line;">${projectDetails}</p>
-      <p>Dikirim pada: ${new Date().toLocaleString('id-ID')}</p>
+      <hr />
+      <h3>Detail Proyek:</h3>
+      <pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${projectDetails}</pre>
     `;
     
     // Kirim email
     try {
       // Verifikasi konfigurasi SMTP terlebih dahulu
       console.log('Verifying SMTP configuration...');
-      await new Promise((resolve, reject) => {
+      const verification = await new Promise((resolve, reject) => {
         transporter.verify(function(error, success) {
           if (error) {
             console.error('SMTP verification failed:', error);
             reject(error);
           } else {
-            console.log('SMTP server is ready');
+            console.log('SMTP server is ready to take our messages');
             resolve(success);
           }
         });
       });
+      
+      console.log('SMTP verification result:', verification);
       
       // Kirim email
       const mailOptions = {
@@ -88,7 +99,7 @@ module.exports = async (req, res) => {
         to: 'karyabangunsemestas@gmail.com',
         subject: subject || `[Konsultasi Proyek] Permintaan dari ${name}`,
         html: emailContent,
-        replyTo: email
+        replyTo: email  // Set reply-to sebagai email pengirim
       };
       
       console.log('Sending email with options:', {
