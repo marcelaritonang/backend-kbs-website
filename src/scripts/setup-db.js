@@ -24,7 +24,7 @@ async function setupDatabase() {
     // Gunakan database
     await connection.query(`USE ${dbName}`);
 
-    // Buat tabel
+    // Buat tabel contact_messages
     await connection.query(`
       CREATE TABLE IF NOT EXISTS contact_messages (
         id INT PRIMARY KEY AUTO_INCREMENT,
@@ -39,6 +39,25 @@ async function setupDatabase() {
       )
     `);
     console.log('Table contact_messages created or already exists');
+
+    // Buat tabel project_consultations
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS project_consultations (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        company VARCHAR(100),
+        project_type VARCHAR(50),
+        project_details TEXT NOT NULL,
+        budget VARCHAR(100),
+        timeline VARCHAR(100),
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        status ENUM('pending', 'contacted', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+        notes TEXT
+      )
+    `);
+    console.log('Table project_consultations created or already exists');
 
     await connection.end();
     console.log('Database setup completed successfully');
