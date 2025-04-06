@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
-// Enable detailed debugging in development
-const DEBUG = process.env.NODE_ENV !== 'production';
+// Enable detailed debugging
+const DEBUG = true;
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -36,46 +36,61 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Log the request body for debugging
     if (DEBUG) {
-      console.log('Received project consultation request:', req.body);
+      console.log('Received project consultation request:');
+      console.log(JSON.stringify(req.body, null, 2));
     }
     
-    // Validate input
+    // Extract fields from request body with basic validation
     const { name, email, phone, company, projectType, projectDetails, subject } = req.body || {};
     
-    if (!name || !email || !projectDetails) {
+    // Log individual fields for debugging
+    if (DEBUG) {
+      console.log('Extracted fields:');
+      console.log({
+        name: name || 'MISSING',
+        email: email || 'MISSING',
+        phone: phone || 'OPTIONAL',
+        company: company || 'OPTIONAL',
+        projectType: projectType || 'OPTIONAL',
+        projectDetails: projectDetails ? (projectDetails.substring(0, 50) + '...') : 'MISSING',
+        subject: subject || 'OPTIONAL'
+      });
+    }
+    
+    // Simplified validation with better error message
+    // Only require name, email and projectDetails
+    if (!name) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Data nama, email, dan detail proyek harus diisi' 
+        message: 'Nama harus diisi' 
+      });
+    }
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email harus diisi' 
+      });
+    }
+    
+    if (!projectDetails) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Detail proyek harus diisi' 
       });
     }
 
-    // ==========================================
-    // KONFIGURASI SMTP - Simplified for reliability
-    // ==========================================
-    let transporter;
-    let transporterReady = false;
-    
-    try {
-      // Simple configuration that's more likely to work
-      transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_APP_PASSWORD
-        }
-      });
-      
-      // Verify connection configuration
-      transporterReady = true;
-    } catch (emailSetupError) {
-      console.error('Email setup error:', emailSetupError);
-    }
+    // Create email transporter
+    let transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD
+      }
+    });
 
-    // ==========================================
-    // EMAIL SENDING OR DATABASE SAVING
-    // ==========================================
-    
     // Format email content
     const emailContent = `
       <h2>Permintaan Konsultasi Proyek Baru</h2>
@@ -89,31 +104,16 @@ module.exports = async (req, res) => {
       <div style="white-space: pre-line">${projectDetails}</div>
     `;
     
-    // Database fallback object (can be stored in a real database in production)
-    const requestRecord = {
-      id: `req_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      name,
-      email,
-      phone,
-      company,
-      projectType,
-      projectDetails,
-      status: 'pending'
-    };
-    
-    // Try to send email if transporter is ready
-    if (transporterReady) {
-      try {
-        const mailOptions = {
-          from: `"Website KBS" <${process.env.EMAIL_USER}>`,
-          to: 'karyabangunsemestas@gmail.com',
-          cc: process.env.EMAIL_USER, // CC yourself to ensure delivery
-          subject: subject || `[Konsultasi Proyek] Permintaan dari ${name}`,
-          html: emailContent,
-          replyTo: email,  // Set reply-to as sender's email
-          // Add plain text alternative for better deliverability
-          text: `
+    // Try to send email
+    try {
+      const mailOptions = {
+        from: `"Website KBS" <${process.env.EMAIL_USER}>`,
+        to: 'karyabangunsemestas@gmail.com',
+        cc: process.env.EMAIL_USER, // CC yourself to ensure delivery
+        subject: subject || `[Konsultasi Proyek] Permintaan dari ${name}`,
+        html: emailContent,
+        replyTo: email,  // Set reply-to as sender's email
+        text: `
 Permintaan Konsultasi Proyek Baru
 
 Nama: ${name}
@@ -124,47 +124,38 @@ ${projectType ? `Jenis Proyek: ${projectType}\n` : ''}
 
 Detail Proyek:
 ${projectDetails.replace(/<br>/g, '\n')}
-          `
-        };
-        
-        // Attempt to send email
-        const info = await transporter.sendMail(mailOptions);
-        
-        if (DEBUG) {
-          console.log('Email sent successfully:', info.messageId);
-        }
-        
-        return res.status(200).json({
-          success: true,
-          message: 'Permintaan konsultasi proyek berhasil dikirim!',
-          details: DEBUG ? { messageId: info.messageId } : undefined
-        });
-      } catch (emailError) {
-        // Log the error but don't fail the request
-        console.error('Failed to send email:', emailError);
-        
-        // Store the request in backup storage (this would be a database in production)
-        if (DEBUG) {
-          console.log('Storing request for later processing:', requestRecord);
-        }
-        
-        // Return success to the client, but indicate the email might be delayed
-        return res.status(200).json({
-          success: true,
-          message: 'Permintaan konsultasi diterima, namun pengiriman email mungkin tertunda.',
-          request_id: requestRecord.id
+        `
+      };
+      
+      if (DEBUG) {
+        console.log('Attempting to send email with options:', {
+          from: mailOptions.from,
+          to: mailOptions.to,
+          cc: mailOptions.cc,
+          subject: mailOptions.subject
         });
       }
-    } else {
-      // Transporter not ready - store the request and return success
+      
+      const info = await transporter.sendMail(mailOptions);
+      
       if (DEBUG) {
-        console.log('Email transporter not ready, storing request:', requestRecord);
+        console.log('Email sent successfully:', info.messageId);
       }
       
       return res.status(200).json({
         success: true,
-        message: 'Permintaan konsultasi diterima dan akan segera diproses.',
-        request_id: requestRecord.id
+        message: 'Permintaan konsultasi proyek berhasil dikirim!',
+        details: DEBUG ? { messageId: info.messageId } : undefined
+      });
+    } catch (emailError) {
+      // Log the error but don't fail the request
+      console.error('Failed to send email:', emailError);
+      
+      // Return an error response
+      return res.status(500).json({
+        success: false,
+        message: 'Sistem email sedang mengalami gangguan. Tim kami akan segera menghubungi Anda.',
+        error: DEBUG ? emailError.message : undefined
       });
     }
   } catch (error) {

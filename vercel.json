@@ -1,7 +1,8 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/contact", "dest": "/api/contact.js" },
-    { "src": "/(.*)", "dest": "/api/contact.js" }
+    { "src": "/api/contact/(.*)", "dest": "/api/contact.js" },
+    { "src": "/api/project-consultation", "dest": "/api/project-consultation.js" },
+    { "src": "/api/debug", "dest": "/api/debug.js" }
   ]
 }
